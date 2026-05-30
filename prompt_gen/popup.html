@@ -1,0 +1,159 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gentool</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>Gentool</h1>
+        <p>公开论文爬取与图片 prompt 导出</p>
+      </header>
+
+      <section class="panel">
+        <div class="section-title">Prompt 风格</div>
+        <div class="segmented" role="group" aria-label="Prompt style">
+          <button class="seg active" type="button" data-style="addchat">单图风格（偏流程图）</button>
+          <button class="seg" type="button" data-style="screens">独立多屏风格</button>
+        </div>
+        <label class="inline-check">
+          <input id="specifyRandomStyle" type="checkbox" />
+          随机指定具体卡通风格
+        </label>
+        <div id="screenSettings" class="screen-settings hidden">
+          <div class="grid three">
+            <label>
+              屏幕数量
+              <input id="screenCount" type="number" min="2" max="10" value="4" />
+            </label>
+            <label>
+              前面屏比例
+              <select id="firstRatio">
+                <option value="1:1" selected>1:1</option>
+                <option value="4:3">4:3</option>
+                <option value="3:4">3:4</option>
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
+              </select>
+            </label>
+            <label>
+              最后一屏比例
+              <select id="lastRatio">
+                <option value="16:9" selected>16:9</option>
+                <option value="1:1">1:1</option>
+                <option value="4:3">4:3</option>
+                <option value="3:4">3:4</option>
+                <option value="9:16">9:16</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="domains-head">
+          <div>
+            <div class="section-title">领域任务</div>
+            <p>每个领域可单独设置 prompt 数量、论文数量和候选段。</p>
+          </div>
+          <div class="icon-actions">
+            <button id="removeDomainButton" class="icon-btn" type="button" title="减少领域">−</button>
+            <button id="addDomainButton" class="icon-btn" type="button" title="增加领域">+</button>
+          </div>
+        </div>
+        <div id="domainList"></div>
+      </section>
+
+      <section class="panel">
+        <div class="checks">
+          <label><input id="useEuropePmc" type="checkbox" checked /> 同时检索 Europe PMC</label>
+          <label><input id="openAccessOnly" type="checkbox" checked /> 优先开放论文</label>
+        </div>
+        <button id="runButton" type="button">开始爬取并生成 txt</button>
+      </section>
+
+      <section class="status">
+        <div id="statusText">等待开始</div>
+        <progress id="progress" value="0" max="100"></progress>
+      </section>
+
+      <section class="panel prefix-panel">
+        <div class="toolbar">
+          <strong>领域前缀编辑</strong>
+          <button id="applyPrefixButton" type="button" disabled>应用到当前领域</button>
+        </div>
+        <label>
+          选择领域文件
+          <select id="prefixFileSelect" disabled></select>
+        </label>
+        <p>生成后可分别修改每个领域中“论文内容”前面的提示词，论文文本会保持不变。</p>
+        <textarea id="prefixEditor" rows="8" spellcheck="false" disabled></textarea>
+      </section>
+
+      <section class="panel results">
+        <div class="toolbar">
+          <strong>结果预览</strong>
+          <button id="downloadButton" type="button" disabled>下载文件夹</button>
+        </div>
+        <label>
+          选择预览文件
+          <select id="previewFileSelect" disabled></select>
+        </label>
+        <textarea id="preview" rows="12" spellcheck="false" readonly></textarea>
+      </section>
+    </main>
+
+    <template id="domainTemplate">
+      <article class="domain-card">
+        <div class="card-head">
+          <strong class="domain-index">领域 1</strong>
+          <button class="remove-card" type="button" title="删除这个领域">删除</button>
+        </div>
+
+        <label>
+          领域
+          <select class="domain-preset">
+            <option value="biomed">生物医学与生命科学</option>
+            <option value="nature">自然环境与生态地理</option>
+            <option value="it">信息技术与智能科技</option>
+            <option value="industry">工业制造与能源材料</option>
+            <option value="urban">城市建筑与交通物流</option>
+            <option value="science">数理基础与科学原理</option>
+            <option value="custom">自定义输入</option>
+          </select>
+        </label>
+
+        <label class="custom-domain-wrap hidden">
+          自定义领域名称
+          <input class="domain-name" type="text" placeholder="例如：海洋生态与渔业资源" />
+        </label>
+
+        <label>
+          搜索关键词
+          <textarea class="query-input" rows="3" spellcheck="false"></textarea>
+        </label>
+
+        <div class="grid three">
+          <label>
+            Prompt 数量
+            <input class="prompt-count" type="number" min="1" max="50" value="8" />
+          </label>
+          <label>
+            论文数量
+            <input class="paper-count" type="number" min="1" max="50" value="8" />
+          </label>
+          <label>
+            每篇候选段
+            <input class="per-paper" type="number" min="1" max="5" value="1" />
+          </label>
+        </div>
+      </article>
+    </template>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
+
