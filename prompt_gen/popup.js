@@ -53,7 +53,36 @@ const CARTOON_STYLE_OPTIONS = [
   "图标玩具感",
   "Q版科普",
   "轻半立体卡通",
-  "干净扁平图形"
+  "干净扁平图形",
+  "厚描边贴纸",
+  "赛璐璐动画",
+  "极简线面插画",
+  "几何图标卡通",
+  "软塑料玩具",
+  "泡泡糖高光",
+  "拼块积木感",
+  "2.5D数字插画",
+  "科技UI卡通",
+  "童书科普插画",
+  "简洁矢量贴纸",
+  "信息图标卡通"
+];
+
+const FINAL_COMPOSITION_OPTIONS = [
+  "单主体近景",
+  "双主体互动",
+  "局部剖面视角",
+  "主对象加局部放大",
+  "进入微环境",
+  "作用瞬间",
+  "前后状态对照",
+  "核心对象加少量关联物",
+  "局部场景切片",
+  "路径轨迹构图",
+  "包裹或包围关系",
+  "层级结构剖开",
+  "操作台式近景",
+  "异常点突出"
 ];
 
 const state = {
@@ -61,6 +90,8 @@ const state = {
   promptFiles: [],
   metadata: [],
   fetchWarnings: [],
+  styleBag: [],
+  finalCompositionBag: [],
   promptStyle: "addchat",
   selectedPrefixIndex: 0,
   selectedPreviewIndex: 0
@@ -73,6 +104,7 @@ const els = {
   removeDomainButton: document.getElementById("removeDomainButton"),
   styleButtons: Array.from(document.querySelectorAll(".seg")),
   specifyRandomStyle: document.getElementById("specifyRandomStyle"),
+  specifyFinalComposition: document.getElementById("specifyFinalComposition"),
   screenSettings: document.getElementById("screenSettings"),
   screenCount: document.getElementById("screenCount"),
   firstRatio: document.getElementById("firstRatio"),
@@ -255,15 +287,43 @@ function uniqueRecords(records, limit) {
     .slice(0, limit);
 }
 
+function shuffledCartoonStyles() {
+  const styles = [...CARTOON_STYLE_OPTIONS];
+  for (let i = styles.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [styles[i], styles[j]] = [styles[j], styles[i]];
+  }
+  return styles;
+}
+
 function pickCartoonStyle() {
-  return CARTOON_STYLE_OPTIONS[Math.floor(Math.random() * CARTOON_STYLE_OPTIONS.length)];
+  if (!state.styleBag.length) {
+    state.styleBag = shuffledCartoonStyles();
+  }
+  return state.styleBag.shift();
+}
+
+function shuffledFinalCompositions() {
+  const compositions = [...FINAL_COMPOSITION_OPTIONS];
+  for (let i = compositions.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [compositions[i], compositions[j]] = [compositions[j], compositions[i]];
+  }
+  return compositions;
+}
+
+function pickFinalComposition() {
+  if (!state.finalCompositionBag.length) {
+    state.finalCompositionBag = shuffledFinalCompositions();
+  }
+  return state.finalCompositionBag.shift();
 }
 
 function commonStyleText(specifiedStyle = "") {
   if (specifiedStyle) {
     return `所有屏幕都不要标题、标签、字母、数字或说明文字；不要复杂背景，不要照片级3D。本条prompt直接指定卡通风格：${specifiedStyle}；请围绕这一风格完成整组图片，配色和构图可以变化，但不要再随机切换到其他风格。避免总是紫粉渐变、透明细胞、漂浮颗粒网或白底居中。`;
   }
-  return "所有屏幕都不要标题、标签、字母、数字或说明文字；不要复杂背景，不要照片级3D。风格保持卡通大类，并主动随机化：本段各屏之间要换画法、配色和构图，和上一段生成结果也尽量更换风格。可使用但不限于：彩铅感、粉笔感、纸艺剪贴、黏土感、低多边形、漫画分镜、复古科普、等距小模型、线稿填色、玻璃质感卡通、图标玩具感、Q版科普、轻半立体卡通、干净扁平图形。避免总是紫粉渐变、透明细胞、漂浮颗粒网或白底居中。";
+  return `所有屏幕都不要标题、标签、字母、数字或说明文字；不要复杂背景，不要照片级3D。风格保持卡通大类，并主动随机化：本段各屏之间要换画法、配色和构图，和上一段生成结果也尽量更换风格。可使用但不限于：${CARTOON_STYLE_OPTIONS.join("、")}。避免总是紫粉渐变、透明细胞、漂浮颗粒网或白底居中。`;
 }
 
 function readScreenSettings() {
@@ -298,6 +358,40 @@ function normalizePrefix(prefix) {
   return nextPrefix;
 }
 
+function extractSpecifiedCartoonStyle(prefix) {
+  const match = String(prefix || "").match(/本条prompt直接指定卡通风格：([^；。]+)/);
+  return match ? match[1].trim() : "";
+}
+
+function preserveItemSpecifiedStyle(newPrefix, item) {
+  const itemStyle = extractSpecifiedCartoonStyle(item.prefix);
+  if (!itemStyle) return newPrefix;
+  return newPrefix.replace(/(本条prompt直接指定卡通风格：)([^；。]+)/, `$1${itemStyle}`);
+}
+
+function extractSpecifiedFinalComposition(prefix) {
+  const match = String(prefix || "").match(/本条prompt直接指定第\d+图构图：([^；。]+)/);
+  return match ? match[1].trim() : "";
+}
+
+function preserveItemFinalComposition(newPrefix, item) {
+  const itemComposition = extractSpecifiedFinalComposition(item.prefix);
+  if (!itemComposition) return newPrefix;
+  return newPrefix.replace(/(本条prompt直接指定第\d+图构图：)([^；。]+)/, `$1${itemComposition}`);
+}
+
+function preserveItemSpecifiedOptions(newPrefix, item) {
+  return preserveItemFinalComposition(preserveItemSpecifiedStyle(newPrefix, item), item);
+}
+
+function finalCompositionText(finalScreen, specifiedComposition = "") {
+  const base = `${finalScreen}构图必须避免元素堆砌、中心辐射网络、图标清单或把多个关键词物件简单平铺连接。画面围绕一个主要对象或一个明确事件展开，像一个有故事瞬间的无文字科普插图：一个主角、一个动作、少量辅助对象、清晰关系。`;
+  if (specifiedComposition) {
+    return `${base}本条prompt直接指定${finalScreen.replace("屏", "图")}构图：${specifiedComposition}；请围绕这一种构图完成${finalScreen}，不要混合多种构图套路。`;
+  }
+  return `${base}${finalScreen}请从以下14种构图中随机选择一种，而且只选一种：${FINAL_COMPOSITION_OPTIONS.join("、")}。`;
+}
+
 function buildAddChatPrompt(record, task) {
   return [
     `Create image with aspect ratio: 16:9: 请根据以下论文内容生成一张极简无文字${task.domainLabel}学术示意图，风格偏扁平矢量学术插画，参考干净医学插画的简洁度，允许少量柔和阴影和轻微体积感。只表达核心机制，不画完整复杂场景；画面最多包含3到5个主要图形单元、1到3条主箭头、2到4个浅色圆角分区或模块。使用大面积留白、低饱和配色、清晰轮廓和简单形状；不要标题、标签、字母、数字或说明文字。避免密集纹理、密集碎线、颗粒堆叠、重复图标或节点、复杂微小结构、强高光、照片级3D渲染和过多小元素；整体更简洁，更接近干净的论文机制流程示意图。`,
@@ -312,12 +406,14 @@ function buildScreensPrompt(record, task) {
   const finalScreen = `第${screenCount}屏`;
   const firstScreenRange = firstScreenCount === 1 ? "第1屏" : `第1屏到第${firstScreenCount}屏`;
   const specifiedStyle = task.specifyRandomStyle ? pickCartoonStyle() : "";
+  const specifiedFinalComposition = task.specifyFinalComposition ? pickFinalComposition() : "";
   return [
     `请根据以下论文内容生成图片。关键执行方式：从第1屏开始重新生成单张独立图，逐屏执行：${screenListText(screenCount)}，生成完一张自动继续下一张，直到${finalScreen}完成。每一屏都是一张单独图片、单独画布、单独结果；不要四宫格，不要拼图，不要拼版，不要长图，不要把多个结果合成在同一张画布或同一个外框里。`,
     `主题领域：${task.domainLabel}。`,
     `${firstScreenRange}分别使用${task.firstRatio || "1:1"}比例：从论文内容中挑选${firstScreenCount}个最有代表性、最适合单独成图的物品、主体或场景元素，各生成一张简单卡通素材图；每屏只画1个核心对象，可加入少量辅助小元素，但不要表达步骤、因果或流程。这些屏幕必须是简单物件素材图，白色或浅色纯背景，主体居中或轻微偏移，轮廓清楚，少细节、少纹理，像可单独使用的图标/贴纸/素材；不要画完整场景、微缩生态景观、复杂环境底座、密集背景、密集野生动物、复杂建筑或复杂人群。`,
     `可优先考虑这些视觉对象：${task.visualExamples}。`,
-    `${finalScreen}使用${task.lastRatio || "16:9"}比例：生成一张无文字的百科式学术卡通插图，不是风景画，不是大场景插画，不是流程图。${finalScreen}构图要根据论文对象自然决定，不要每次都使用箭头、放大圈或局部剖面；这些只是可选手段，只有画面确实需要说明局部关系时才少量使用。可以选择一种构图：一个核心对象与周围相关小物件、器官/装置/结构的简化剖面、细胞或材料的局部微环境、少量对象的自然关系组合、一个主物件加几个漂浮辅助元素、左右轻量对照但不加外框。通常画3到8个主要视觉元素，元素漂浮或平铺在白色/浅色纯背景上，像教材里的无文字小型机制示意图。${finalScreen}只提取其中最有代表性的几个物件或关系。`,
+    `${finalScreen}使用${task.lastRatio || "16:9"}比例：生成一张无文字的百科式学术卡通插图，不是风景画，不是大场景插画，不是流程图。${finalScreen}要有故事性，像一个小型科普场景或机制片段，重点表现几个关键对象如何共处、接触、影响、进入某个微环境、形成结构或产生现象。优先使用近景、局部视角或明确互动瞬间，让主体占据画面主要面积，周围只保留1到3个辅助元素。可以用局部放大、箭头、简化剖面、运动轨迹、轻量对照、前后状态暗示或空间层次来描述关系，但这些都是可选手段，不要每次都强行使用。通常画3到8个主要视觉元素，像教材里的无文字小型机制示意图。${finalScreen}只提取其中最有代表性的几个物件或关系。`,
+    finalCompositionText(finalScreen, specifiedFinalComposition),
     "使用清晰封闭轮廓、干净实色或平滑渐变色块、平滑边缘和较少颜色层级，避免颗粒、交叉排线、纸张纹理、手绘涂抹痕迹和大量碎线。",
     commonStyleText(specifiedStyle),
     `论文内容：${record.text}`
@@ -395,6 +491,7 @@ function readTasks() {
       domainLabel: domainName,
       visualExamples: presetValue === "custom" ? inferVisualExamples(domainName) : preset.visual,
       specifyRandomStyle: els.specifyRandomStyle.checked,
+      specifyFinalComposition: state.promptStyle === "screens" && els.specifyFinalComposition.checked,
       ...screenSettings
     };
   });
@@ -446,6 +543,8 @@ async function runCrawler() {
   state.promptFiles = [];
   state.metadata = [];
   state.fetchWarnings = [];
+  state.styleBag = [];
+  state.finalCompositionBag = [];
   state.selectedPrefixIndex = 0;
   state.selectedPreviewIndex = 0;
 
@@ -545,6 +644,9 @@ function clearGeneratedOutputs() {
   state.promptsText = "";
   state.promptFiles = [];
   state.metadata = [];
+  state.fetchWarnings = [];
+  state.styleBag = [];
+  state.finalCompositionBag = [];
   state.selectedPrefixIndex = 0;
   state.selectedPreviewIndex = 0;
   els.prefixFileSelect.innerHTML = "";
@@ -566,7 +668,7 @@ function applyCurrentFilePrefix() {
   state.promptFiles = state.promptFiles.map((file, fileIndex) => ({
     ...file,
     items: fileIndex === index
-      ? (file.items || []).map((item) => ({ ...item, prefix }))
+      ? (file.items || []).map((item) => ({ ...item, prefix: preserveItemSpecifiedOptions(prefix, item) }))
       : file.items
   }));
   refreshPromptTexts();
@@ -626,6 +728,11 @@ els.styleButtons.forEach((button) => {
 els.specifyRandomStyle.addEventListener("change", () => {
   clearGeneratedOutputs();
   setStatus("已切换风格指定方式，请重新爬取生成。", 0);
+});
+
+els.specifyFinalComposition.addEventListener("change", () => {
+  clearGeneratedOutputs();
+  setStatus("已切换第4图构图指定方式，请重新爬取生成。", 0);
 });
 
 els.addDomainButton.addEventListener("click", () => addDomainCard("biomed"));
